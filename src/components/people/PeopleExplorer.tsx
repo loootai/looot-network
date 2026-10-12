@@ -202,7 +202,7 @@ export function PeopleExplorer(props: ExplorerProps) {
       {(!isSearch || hasQuery) && (
         <>
           <div className="mt-3 flex flex-wrap items-center gap-2" role="group" aria-label="Filters">
-            {SOURCE_KINDS.filter((s) => ["linkedin", "google", "csv", "x"].includes(s)).map((s) => (
+            {SOURCE_KINDS.filter((s) => ["linkedin", "google", "csv", "x", "granola"].includes(s)).map((s) => (
               <button key={s} type="button" aria-pressed={sources.includes(s)} onClick={() => toggleSource(s)} className={cn("h-8 rounded-full border px-3 text-13 transition-colors max-sm:h-10", sources.includes(s) ? "border-primary bg-primary text-primary-foreground" : "border-border-strong bg-surface hover:bg-muted")}>
                 {SOURCE_LABEL[s]}
               </button>

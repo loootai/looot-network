@@ -1,9 +1,9 @@
 /** Where a person row came from. */
-export type SourceKind = "linkedin" | "google" | "csv" | "x" | "manual" | "demo";
-export const SOURCE_KINDS: SourceKind[] = ["linkedin", "google", "csv", "x", "manual", "demo"];
+export type SourceKind = "linkedin" | "google" | "csv" | "x" | "granola" | "manual" | "demo";
+export const SOURCE_KINDS: SourceKind[] = ["linkedin", "google", "csv", "x", "granola", "manual", "demo"];
 /** Short names for chips in tables, where "Google Contacts" would wrap. */
-export const SOURCE_SHORT: Record<SourceKind, string> = { linkedin: "LinkedIn", google: "Google", csv: "CSV", x: "X", manual: "Manual", demo: "Demo" };
-export const SOURCE_LABEL: Record<SourceKind, string> = { linkedin: "LinkedIn", google: "Google Contacts", csv: "CSV", x: "X following", manual: "Manual", demo: "Demo" };
+export const SOURCE_SHORT: Record<SourceKind, string> = { linkedin: "LinkedIn", google: "Google", csv: "CSV", x: "X", granola: "Granola", manual: "Manual", demo: "Demo" };
+export const SOURCE_LABEL: Record<SourceKind, string> = { linkedin: "LinkedIn", google: "Google Contacts", csv: "CSV", x: "X following", granola: "Granola meetings", manual: "Manual", demo: "Demo" };
 
 /** One person as a parser produces it, before dedupe. `raw` is the original row, kept so the profile drawer can show what the file said. */
 export interface PersonInput {

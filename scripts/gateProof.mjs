@@ -21,7 +21,7 @@ const session = { access_token: "a.b.c", refresh_token: "r", token_type: "bearer
 const cookie = `sb-127-auth-token=base64-${Buffer.from(JSON.stringify(session)).toString("base64url")}`;
 
 const child = spawn("node_modules/.bin/next", ["start", "-p", String(APP)], {
-  env: { ...process.env, NEXT_PUBLIC_DEMO: "", NEXT_PUBLIC_SUPABASE_URL: `http://127.0.0.1:${AUTH}`, NEXT_PUBLIC_SUPABASE_ANON_KEY: "anon", LOOOT_NETWORK_ALLOWED_EMAILS: "owner@acme.example", LOOOT_TOKEN: "" },
+  env: { ...process.env, NEXT_PUBLIC_DEMO: "", NEXT_PUBLIC_SUPABASE_URL: `http://127.0.0.1:${AUTH}`, NEXT_PUBLIC_SUPABASE_ANON_KEY: "anon", LOOOT_NETWORK_ALLOWED_EMAILS: "owner@acme.example", LOOOT_TOKEN: "", GRANOLA_API_KEY: "" },
   stdio: "ignore",
 });
 const stop = () => { child.kill(); fake.close(); };
@@ -47,6 +47,7 @@ const pages = ["/", "/search", "/companies", "/imports", "/enrich", "/settings"]
 for (const p of api) check(`no cookie  GET ${p}`, await get(p), [401]);
 for (const p of pages) check(`no cookie  GET ${p}`, await get(p), [307, 303]);
 check("no cookie  POST /api/import", await get("/api/import", { method: "POST", headers: { "content-type": "application/json" }, body: "{}" }), [401]);
+check("no cookie  POST /api/import/granola", await get("/api/import/granola", { method: "POST", headers: { "content-type": "application/json" }, body: "{}" }), [401]);
 check("no cookie  POST /api/enrich", await get("/api/enrich", { method: "POST", headers: { "content-type": "application/json" }, body: "{}" }), [401]);
 check("public     GET /api/health", await get("/api/health"), [200]);
 check("public     GET /login", await get("/login"), [200]);
@@ -57,6 +58,7 @@ for (const p of pages) check(`session    GET ${p}`, await get(p, { headers: h })
 check("session    POST /api/import from another origin", await get("/api/import", { method: "POST", headers: { ...h, origin: "https://evil.example", "content-type": "application/json" }, body: "{}" }), [403]);
 check("session    POST /api/import as text/plain", await get("/api/import", { method: "POST", headers: { ...h, "content-type": "text/plain" }, body: "{}" }), [403]);
 check("session    POST /api/enrich while enrichment is off", await get("/api/enrich", { method: "POST", headers: { ...h, "content-type": "application/json" }, body: JSON.stringify({ kinds: ["profile"], query: "", maxCostUsd: 999 }) }), [409]);
+check("session    POST /api/import/granola with no GRANOLA_API_KEY", await get("/api/import/granola", { method: "POST", headers: { ...h, "content-type": "application/json" }, body: "{}" }), [409]);
 console.log(rows.join("\n"));
 console.log(bad === 0 ? `Gate proof passed: ${rows.length} checks` : `Gate proof FAILED: ${bad} of ${rows.length}`);
 stop();

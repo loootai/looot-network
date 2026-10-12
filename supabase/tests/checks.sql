@@ -3,6 +3,7 @@ set role authenticated;
 set request.jwt.claim.sub = '11111111-1111-1111-1111-111111111111';
 
 insert into imports (id, filename, source, rows) values ('bbbbbbbb-0000-0000-0000-000000000001', 'Connections.csv', 'linkedin', 200);
+insert into imports (id, filename, source, rows) values ('bbbbbbbb-0000-0000-0000-000000000002', 'Granola meetings', 'granola', 3);
 insert into person_sources (person_id, import_id, source, row_number) values ('00000000-0000-4000-8000-000000000001', 'bbbbbbbb-0000-0000-0000-000000000001', 'linkedin', 1);
 insert into saved_searches (name, query) values ('Fintech founders', 'founders in Paris at fintech');
 insert into enrichments (person_id, kind, idempotency_key, endpoint_id, status) values ('00000000-0000-4000-8000-000000000001', 'profile', 'network:v1:profile:k1', 'anyapi-run-linkedin-profile-thin', 'ok');

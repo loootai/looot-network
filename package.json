@@ -1,6 +1,6 @@
 {
   "name": "looot-network",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Search your own network in plain language. Import LinkedIn, Google Contacts or any CSV, index it in your Supabase, optionally enrich through looot. Next.js, Supabase and looot.",
   "license": "MIT",
   "private": true,

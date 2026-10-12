@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.1.1
+
+- Granola meeting import. People who attended your meetings become contacts with source "granola", the last-met date and meeting title kept as provenance, merged through the same dedupe path as the CSV sources. Server-side key (`GRANOLA_API_KEY`), `POST /api/import/granola` behind the allow-list, `import --granola` in the CLI with `--dry-run`, `--since`, `--exclude-domain` and `--self`. Migration `20261012000300_granola_source.sql` adds the source to the imports check.
+- Demo mode shows the source with invented meetings.
+- New skill `skills/looot-meeting-prep/`.
+- Not tested against a live Granola account. Two response shapes (the list sample and `Retry-After`) were guessed from the docs. All HTTP in the tests is mocked.
+
 ## 0.1.0
 
 First release.

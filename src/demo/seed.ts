@@ -72,8 +72,9 @@ export function seedDemo(count = 200): DemoData {
     { id: id(9002), created_at: "2026-10-03T18:30:00Z", filename: "contacts.csv", source: "google", rows: 0, added: 0, merged: 0, skipped: 0, rejected: [] },
     { id: id(9003), created_at: "2026-10-05T10:15:00Z", filename: "founders-met-2026.csv", source: "csv", rows: 0, added: 0, merged: 0, skipped: 0, rejected: [] },
     { id: id(9004), created_at: "2026-10-06T21:00:00Z", filename: "following.js", source: "x", rows: 0, added: 0, merged: 0, skipped: 0, rejected: [] },
+    { id: id(9005), created_at: "2026-10-09T17:00:00Z", filename: "Granola meetings", source: "granola", rows: 0, added: 0, merged: 0, skipped: 0, rejected: [] },
   ];
-  const importOf: Record<string, ImportRecord> = { linkedin: imports[0], google: imports[1], csv: imports[2], x: imports[3] };
+  const importOf: Record<string, ImportRecord> = { linkedin: imports[0], google: imports[1], csv: imports[2], x: imports[3], granola: imports[4] };
 
   for (let i = 0; people.length < count; i++) {
     const first = pick(FIRST);
@@ -137,6 +138,17 @@ export function seedDemo(count = 200): DemoData {
     imp.rows++;
     imp.merged++;
     sources.push({ person_id: p.id, import_id: imp.id, source: "google", filename: imp.filename, imported_at: imp.created_at, row_number: imp.rows, raw: { "First Name": p.first_name ?? "", "Last Name": p.last_name ?? "", "E-mail 1 - Value": p.email, "Organization Name": p.company ?? "" } });
+  }
+  // Some people with an email were also met in a Granola meeting. The profile drawer shows the last-met date and the meeting title.
+  const MEETINGS = ["Intro call", "Product demo", "Partnership sync", "Hiring chat", "Investor catch-up"];
+  for (const [j, p] of people.filter((q, k) => k % 23 === 5 && q.email && q.source_kinds[0] !== "x").entries()) {
+    const when = `2026-09-${String(3 + ((j * 3) % 25)).padStart(2, "0")}`;
+    const title = `${MEETINGS[j % MEETINGS.length]} with ${p.company ?? "a guest"}`;
+    p.source_kinds = [...p.source_kinds, "granola"];
+    const imp = importOf.granola;
+    imp.rows++;
+    imp.merged++;
+    sources.push({ person_id: p.id, import_id: imp.id, source: "granola", filename: imp.filename, imported_at: imp.created_at, row_number: imp.rows, raw: { Email: p.email!, Name: p.full_name, "Last met": when, "Meeting title": title, Meetings: String(1 + (j % 3)), "Note ids": "" } });
   }
   const saved: SavedSearch[] = [
     { id: id(8001), created_at: "2026-10-02T10:00:00Z", name: "Fintech founders in Paris", query: "founders in Paris at fintech" },

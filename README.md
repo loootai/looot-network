@@ -4,7 +4,7 @@
 
 [![License](https://img.shields.io/github/license/loootai/looot-network)](LICENSE) [![Release](https://img.shields.io/github/v/release/loootai/looot-network)](https://github.com/loootai/looot-network/releases) [![Docs](https://img.shields.io/badge/docs-docs.looot.ai-12A06A)](https://docs.looot.ai)
 
-Search your own network in plain language. You export your connections from LinkedIn, Google Contacts or X (or bring any CSV), import them, and ask for "founders in Paris at fintech" or "who works at Stripe". The people live in your own Supabase project. Optional paid enrichment goes through [looot](https://looot.ai) and shows its price before it runs.
+Search your own network in plain language. You export your connections from LinkedIn, Google Contacts or X (or bring any CSV), or pull in the people from your Granola meetings, import them, and ask for "founders in Paris at fintech" or "who works at Stripe". The people live in your own Supabase project. Optional paid enrichment goes through [looot](https://looot.ai) and shows its price before it runs.
 
 This is an open-source alternative to [Happenstance](https://happenstance.ai). On 2026-10-12 its pricing page listed Free at $0, Pro at $24 a month billed yearly, and Team at $24 per seat a month. This project has no plan and no seat. You host it, and you pay looot only for the enrichment calls you choose to run. This project is built on looot. It is not the looot dashboard, and it has no connection to Happenstance.
 
@@ -85,7 +85,7 @@ In Supabase the work is done by the SQL function `search_people()` (full-text in
 ## Run it with your own data
 
 1. Create a Supabase project. In Authentication, enable Email (magic link). Add `http://localhost:3000/auth/callback` and your deployed URL to the redirect URLs.
-2. Apply the three files in [supabase/migrations/](supabase/migrations/) in order, with `supabase db push` or by pasting them into the SQL editor. They create the tables, row-level security, the search functions and the budget functions. Nothing is dropped.
+2. Apply the four files in [supabase/migrations/](supabase/migrations/) in order, with `supabase db push` or by pasting them into the SQL editor. They create the tables, row-level security, the search functions and the budget functions. Nothing is dropped.
 3. Copy the env file and fill it in:
 
 ```bash
@@ -102,6 +102,7 @@ npm run dev
 | `NEXT_PUBLIC_SUPABASE_ANON_KEY` | yes | Supabase anon key. The app uses it with the signed-in user's session only. There is no service role key |
 | `LOOOT_NETWORK_ALLOWED_EMAILS` | yes, outside demo | Comma separated emails that may use the network. Case-insensitive, exact match. With this and the domains variable both empty, the app shows a setup page and refuses everything |
 | `LOOOT_NETWORK_ALLOWED_DOMAINS` | no | Comma separated email domains that may use it. Exact domain, not a suffix |
+| `GRANOLA_API_KEY` | for Granola import | Granola API key (`grn_...`, Business plan). Server only. See the Granola section |
 | `LOOOT_NETWORK_ENRICH` | for paid runs | `1` turns paid enrichment on. Off by default |
 | `LOOOT_TOKEN` | for paid runs | looot agent token. Server only, never sent to the browser |
 | `LOOOT_NETWORK_CAP_USD` | no | Most one run may spend. Default 1. The browser cannot change it |
@@ -119,7 +120,24 @@ npm run network -- search "founders in Paris at fintech" Connections.csv contact
 npm run network -- enrich Connections.csv --kinds profile,email --max-spend 1 --dry-run
 ```
 
+Add `--granola` to `import`, `search` or `enrich` to include your Granola meetings (see below). `--since 2026-01-01`, `--exclude-domain mycompany.example.com` and `--self me@mycompany.example.com` narrow it, and `--dry-run` counts what it would add and writes nothing.
+
 Reports go to `./out` as JSON, CSV and markdown (`--out`, `--format`). `--dry-run` prints the list-price cost and makes no call, with or without a token. Exit codes: 0 done, 1 error, 2 refused (no token, over the cap or budget, token rejected). The CLI keeps its budget and stored answers in `.looot-network/budget.json`. Run `npm run network -- --help` for every option.
+
+## Granola meetings
+
+Granola is a meeting-notes app. This imports the people who attended your meetings as contacts with source "granola". Each person keeps the date you last met and the title of that meeting on their profile (the Granola row in the profile drawer), plus how many meetings you shared. They go through the same dedupe and merge as the CSV sources: matched by email, existing details are never overwritten, and importing twice adds nobody.
+
+- What it reads: the list of notes and, for each note, the attendees and calendar invitees. It never asks for transcripts and never reads private notes.
+- What you need: a Granola Business plan. API keys are not available on other plans. Create a key in Granola under Settings, Connectors, API keys, and set `GRANOLA_API_KEY` on the server (`.env.local`, or `export` for the CLI). The key is read on the server only. The browser never sees it, and the request body cannot carry one.
+- Web app: Imports, "Check Granola" counts what would change, then "Import". The route is `POST /api/import/granola` and sits behind the same allow-list as the other import routes.
+- CLI: `GRANOLA_API_KEY=grn_... npm run network -- import --granola --dry-run`, then again without `--dry-run`. Without a key it exits 2 and says so.
+- Limits: one list call per 30 notes plus one request per note, 200 notes by default, so a first import takes a while. Calendar invitees carry no name, so those people get a name made from the email until another source supplies one.
+- Demo mode shows the source with invented meetings and no key.
+
+**Not tested against a live Granola account.** No Business-plan key was available. Two response shapes were guessed: the sample list response (the docs show none, so the fixtures follow the documented schema) and the `Retry-After` header on a 429 (undocumented, so the client falls back to waiting 0.5, 1 and 2 seconds). All HTTP in the tests is mocked. If a real response differs, `src/lib/import/granola/types.ts` and its fixtures are where to look.
+
+The `skills/looot-meeting-prep/` skill is separate: it prepares a brief for an upcoming meeting from a Granola note and enriches the attendees through looot after showing a quote.
 
 ## Enrichment (optional, paid, off by default)
 
@@ -166,7 +184,7 @@ Your people live in your own Supabase project. This app has no database of its o
 
 ## Install for agents
 
-Clone the repo, run `npm install --ignore-scripts`, and copy `skills/looot-network/` into `~/.claude/skills/` for Claude Code. The skill runs the CLI: import, search, then a `--dry-run` quote before any paid run. [llms.txt](llms.txt) has the same for other agents.
+Clone the repo, run `npm install --ignore-scripts`, and copy `skills/looot-network/` (and, for meeting prep, `skills/looot-meeting-prep/`) into `~/.claude/skills/` for Claude Code. The skill runs the CLI: import, search, then a `--dry-run` quote before any paid run. [llms.txt](llms.txt) has the same for other agents.
 
 ## Checks
 
@@ -179,7 +197,7 @@ npm run leak-scan
 
 ## Status
 
-Version 0.1.0. What was run: unit tests with mocked HTTP for the parsers, dedupe, query parser, enrichment engine, budget and CLI; route-level gate tests; the SQL checks on PostgreSQL 17; a clean build; the demo on every route. What was not run: any paid looot call, the Supabase client code against a live Supabase project (the SQL was checked on plain Postgres and the client with a recording stand-in), and the sign-in email flow. Not built: scheduled refresh, background jobs, vector search, a shared team network.
+Version 0.1.1. What was run: unit tests with mocked HTTP for the parsers, dedupe, query parser, enrichment engine, budget and CLI; route-level gate tests; the SQL checks on PostgreSQL 17; a clean build; the demo on every route. What was not run: any call to Granola (all mocked, no Business-plan key), any paid looot call, the Supabase client code against a live Supabase project (the SQL was checked on plain Postgres and the client with a recording stand-in), and the sign-in email flow. Not built: scheduled refresh, background jobs, vector search, a shared team network.
 
 ## Licence
 

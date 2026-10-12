@@ -28,6 +28,7 @@ const SOURCE_TONE: Record<SourceKind, string> = {
   google: "bg-[#f1e2de] text-[#6b2e24] dark:bg-[#3a1f1a] dark:text-[#e6aaa0]",
   csv: "bg-muted text-muted-foreground",
   x: "bg-[#e7e3f0] text-[#44346b] dark:bg-[#2a2340] dark:text-[#bdb0e3]",
+  granola: "bg-[#dff0e6] text-[#1d5a3a] dark:bg-[#17301f] dark:text-[#9ad4b0]",
   manual: "bg-muted text-muted-foreground",
   demo: "bg-muted text-muted-foreground",
 };

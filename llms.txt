@@ -1,6 +1,6 @@
 # looot-network
 
-> Open-source search over your own network, in plain language. Input: files you exported yourself (LinkedIn Connections.csv, Google Contacts CSV, X following.js, any CSV). Output: people matched by a rule-based query parser, as a web app on your Supabase or as a CLI that writes JSON, CSV and markdown. Optional paid enrichment through looot, quote first.
+> Open-source search over your own network, in plain language. Input: files you exported yourself (LinkedIn Connections.csv, Google Contacts CSV, X following.js, any CSV; or your Granola meetings with GRANOLA_API_KEY). Output: people matched by a rule-based query parser, as a web app on your Supabase or as a CLI that writes JSON, CSV and markdown. Optional paid enrichment through looot, quote first.
 
 ## Run it
 

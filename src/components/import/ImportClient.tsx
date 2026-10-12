@@ -3,7 +3,7 @@
 import * as React from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
-import { FileUp, Loader2 } from "lucide-react";
+import { CalendarDays, FileUp, Loader2 } from "lucide-react";
 import { EmptyState, PageIntro, SourceChip } from "@/components/common";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -43,6 +43,28 @@ export function ImportClient({ imports, total, demo }: { imports: ImportRecord[]
   const [busy, setBusy] = React.useState<"preview" | "import" | null>(null);
   const [error, setError] = React.useState<string | null>(null);
   const [drag, setDrag] = React.useState(false);
+  const [granola, setGranola] = React.useState<{ preview: ImportPreview; notes: string[] } | null>(null);
+
+  /** Asks the server to read your Granola meetings. The key stays on the server. dryRun only counts. */
+  const runGranola = async (dryRun: boolean) => {
+    setBusy(dryRun ? "preview" : "import");
+    setError(null);
+    try {
+      const r = await fetch("/api/import/granola", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ dryRun }) });
+      const body = await r.json().catch(() => null);
+      if (!r.ok) throw new Error(body?.error?.message ?? "The server refused the request.");
+      if (dryRun) setGranola({ preview: body as ImportPreview, notes: body.notes ?? [] });
+      else {
+        toast.success(`${num(body.added)} added, ${num(body.merged)} updated`);
+        setGranola(null);
+        router.refresh();
+      }
+    } catch (e) {
+      setError((e as Error).message);
+    } finally {
+      setBusy(null);
+    }
+  };
 
   const call = async (url: string, text: string, filename: string, map: ColumnMapping | null) => {
     const r = await fetch(url, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ text, filename, ...(map ? { mapping: map } : {}) }) });
@@ -114,6 +136,20 @@ export function ImportClient({ imports, total, demo }: { imports: ImportRecord[]
         <Button variant="primary" className="mt-4" onClick={() => input.current?.click()} disabled={busy !== null}>{busy === "preview" ? <Loader2 className="animate-spin" /> : null} Choose a file</Button>
         {demo && <p className="mt-3 max-w-md text-xs text-muted-foreground">Demo: an import is added to the demo network in server memory and disappears when the demo restarts.</p>}
       </div>
+
+      <section className="mt-4 rounded-lg border border-border bg-surface p-4" aria-label="Granola meetings">
+        <div className="flex flex-wrap items-center gap-2">
+          <CalendarDays className="size-4 text-muted-foreground" aria-hidden />
+          <h2 className="text-sm font-semibold">Granola meetings</h2>
+          <SourceChip source="granola" />
+        </div>
+        <p className="mt-1 text-13 text-muted-foreground">Adds the people who attended your meetings, with the last-met date and meeting title kept on their profile. Needs a Granola Business plan and GRANOLA_API_KEY set on the server. Only calendar and attendee fields are read, never transcripts.</p>
+        <div className="mt-3 flex flex-wrap items-center gap-2">
+          <Button variant="primary" onClick={() => void runGranola(true)} disabled={busy !== null}>{busy === "preview" ? <Loader2 className="animate-spin" /> : null} Check Granola</Button>
+          {granola && <Button variant="primary" onClick={() => void runGranola(false)} disabled={busy !== null || granola.preview.added + granola.preview.merged === 0}>{busy === "import" ? <Loader2 className="animate-spin" /> : null} Import {num(granola.preview.added + granola.preview.merged)} {granola.preview.added + granola.preview.merged === 1 ? "person" : "people"}</Button>}
+        </div>
+        {granola && <p className="mt-2 text-13 text-muted-foreground">{num(granola.preview.added)} new, {num(granola.preview.merged)} existing with new details, {num(granola.preview.unchanged)} already known. Nothing is saved until you import.</p>}
+      </section>
 
       {error && <p role="alert" className="mt-3 rounded-md border border-danger/40 bg-danger-bg px-3 py-2 text-13 text-danger">{error}</p>}
 

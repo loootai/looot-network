@@ -94,3 +94,25 @@ describe("enrich", () => {
     expect(await run(["enrich", "--demo"], { LOOOT_TOKEN: "tok_real" })).toBe(2);
   });
 });
+
+describe("import --granola", () => {
+  it("parses the flags and refuses them without --granola", () => {
+    expect(parseArgs(["import", "--granola", "--since", "2026-01-01", "--exclude-domain", "acme.example.com", "--self", "Me@acme.example.com", "--dry-run"])).toMatchObject({ granola: true, since: "2026-01-01", excludeDomains: ["acme.example.com"], selfEmails: ["me@acme.example.com"], dryRun: true });
+    expect(() => parseArgs(["import", "--since", "2026-01-01"])).toThrow(/only apply with --granola/);
+    expect(() => parseArgs(["import", "--granola", "--since", "soon"])).toThrow(/needs a date/);
+  });
+  it("is refused with exit 2 and a plain message when GRANOLA_API_KEY is not set", async () => {
+    expect(await run(["import", "--granola"], {})).toBe(2);
+    expect(lines.join("\n")).toMatch(/GRANOLA_API_KEY is not set/);
+  });
+  it("--demo --granola --dry-run counts new and known people and writes no report", async () => {
+    expect(await run(["import", "--demo", "--granola", "--dry-run"])).toBe(0);
+    expect(lines.join("\n")).toMatch(/Granola meetings: \d+ people, \d+ would be new, \d+ already known\. Dry run: nothing was written\./);
+    expect(fs.existsSync(path.join(out, "network-people.json"))).toBe(false);
+  });
+  it("--demo --granola imports and writes the report with granola as a source", async () => {
+    expect(await run(["import", "--demo", "--granola", "--format", "json"])).toBe(0);
+    const json = JSON.parse(fs.readFileSync(path.join(out, "network-people.json"), "utf8"));
+    expect(json.people.some((p: { source_kinds: string[] }) => p.source_kinds.includes("granola"))).toBe(true);
+  });
+});

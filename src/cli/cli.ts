@@ -8,7 +8,8 @@ import { keysOf } from "../lib/dedupe";
 import { applyFacts, buildQuote, runEnrich, skipText, type CallResult } from "../lib/enrich/engine";
 import { ENRICH, FALLBACK_PRICES, KINDS, PRICES_AS_OF } from "../lib/enrich/providers";
 import { parseImport } from "../lib/import/parsers";
-import { runImport } from "../lib/import/run";
+import { DemoGranolaClient, GranolaApiError, granolaFromEnv, readGranola } from "../lib/import/granola";
+import { previewImport, runImport } from "../lib/import/run";
 import { fetchPrices, hasLoootToken, loootFromEnv, type PriceMap } from "../lib/looot";
 import { toMicros, usd, usdPrecise } from "../lib/money";
 import { specFrom } from "../lib/search/spec";
@@ -23,13 +24,20 @@ Usage
   npm run network -- search "<query>" <file...>             Plain-language search over the files
   npm run network -- enrich <file...> [--query "<query>"]   Quote, and with a token run, paid lookups
 
+Add --granola to import the people from your Granola meetings (Business plan). The key is read from GRANOLA_API_KEY.
+
 Files are LinkedIn Connections.csv, Google Contacts CSV, an X following.js or any CSV with a header.
 Use --demo instead of files to run on 200 invented people. No token, no network, no cost.
 
 Options
   --kinds profile,company,email   Which lookups to run (enrich, default profile)
   --max-spend <usd>               Per-run spend cap in dollars (enrich, default 1)
-  --dry-run                       Print the list-price cost and make no call (enrich)
+  --dry-run                       Print the list-price cost and make no call (enrich). With --granola, count what an
+                                  import would add and write nothing
+  --granola                       Also import attendees of your Granola meetings (import, search, enrich)
+  --since <date>                  Only Granola meetings created after this date (with --granola)
+  --exclude-domain <domain>       Skip attendees on this domain, repeatable (with --granola)
+  --self <email>                  Skip your own address, repeatable (with --granola)
   --limit <n>                     Most people in a search report (default 100)
   --out <dir>                     Where reports go (default ./out)
   --format json,csv,md            Report formats (default json,csv,md)
@@ -38,6 +46,7 @@ Options
   --help
 
 Environment
+  GRANOLA_API_KEY                 Your Granola key (grn_...). Only for --granola. Never printed or sent to looot
   LOOOT_TOKEN                     Your looot key. Not needed for import, search, --dry-run or --demo
   LOOOT_API_URL                   Override the API base (default https://api.looot.ai)
   LOOOT_NETWORK_DIR               Folder for the budget file (default .looot-network)
@@ -54,6 +63,10 @@ export interface Args {
   kinds: EnrichKind[];
   maxSpend: number;
   dryRun: boolean;
+  granola: boolean;
+  since?: string;
+  excludeDomains: string[];
+  selfEmails: string[];
   limit: number;
   out: string;
   formats: string[];
@@ -64,7 +77,7 @@ export interface Args {
 
 /** Parses argv. Throws on an unknown flag so a typo never runs a paid job with defaults. */
 export function parseArgs(argv: string[]): Args {
-  const a: Args = { files: [], kinds: ["profile"], maxSpend: 1, dryRun: false, limit: 100, out: "out", formats: ["json", "csv", "md"], offline: false, demo: false, help: false };
+  const a: Args = { files: [], kinds: ["profile"], maxSpend: 1, dryRun: false, granola: false, excludeDomains: [], selfEmails: [], limit: 100, out: "out", formats: ["json", "csv", "md"], offline: false, demo: false, help: false };
   const value = (i: number, flag: string) => {
     const v = argv[i + 1];
     if (v === undefined || v.startsWith("--")) throw new Error(`${flag} needs a value`);
@@ -96,6 +109,15 @@ export function parseArgs(argv: string[]): Args {
       case "--out": a.out = value(i++, t); break;
       case "--format": a.formats = value(i++, t).split(",").map((s) => s.trim()).filter(Boolean); break;
       case "--dry-run": a.dryRun = true; break;
+      case "--granola": a.granola = true; break;
+      case "--since": {
+        const v = value(i++, t);
+        if (Number.isNaN(Date.parse(v))) throw new Error("--since needs a date, for example 2026-01-01");
+        a.since = v;
+        break;
+      }
+      case "--exclude-domain": a.excludeDomains.push(value(i++, t).toLowerCase()); break;
+      case "--self": a.selfEmails.push(value(i++, t).toLowerCase()); break;
       case "--offline": a.offline = true; break;
       case "--demo": a.demo = true; break;
       case "--help": case "-h": a.help = true; break;
@@ -104,6 +126,7 @@ export function parseArgs(argv: string[]): Args {
         positional.push(t);
     }
   }
+  if (!a.granola && (a.since || a.excludeDomains.length || a.selfEmails.length)) throw new Error("--since, --exclude-domain and --self only apply with --granola.");
   for (const f of a.formats) if (!["json", "csv", "md"].includes(f)) throw new Error(`Unknown format ${f}. Use json, csv or md.`);
   const [cmd, ...rest] = positional;
   if (cmd) {
@@ -139,16 +162,31 @@ function write(args: Args, name: string, people: Person[], md: string, meta: Rec
   say(`Wrote ${written.join(", ")}`);
 }
 
-async function load(args: Args, say: (s: string) => void): Promise<MemoryStore | null> {
+/** Reads Granola into the store through the same plan and commit as a file. With --dry-run it only counts. */
+async function loadGranola(store: MemoryStore, args: Args, env: Record<string, string | undefined>, say: (s: string) => void): Promise<boolean> {
+  const source = args.demo ? new DemoGranolaClient(store.people.filter((p) => p.email).map((p) => ({ name: p.full_name, email: p.email! }))) : granolaFromEnv(env);
+  if (!source) {
+    say("GRANOLA_API_KEY is not set, so Granola was not read. Create a key in Granola (Business plan), or use --demo.");
+    return false;
+  }
+  const parsed = await readGranola(source, { createdAfter: args.since, excludeDomains: args.excludeDomains, selfEmails: args.selfEmails });
+  const r = args.dryRun ? (await previewImport(store, parsed)).preview : await runImport(store, parsed, "Granola meetings");
+  say(`Granola meetings: ${r.rows} people, ${r.added} ${args.dryRun ? "would be new" : "new"}, ${r.merged + r.unchanged} already known${args.dryRun ? ". Dry run: nothing was written." : "."}`);
+  for (const n of parsed.notes) say(`  ${n}`);
+  return true;
+}
+
+async function load(args: Args, env: Record<string, string | undefined>, say: (s: string) => void): Promise<MemoryStore | null> {
   const store = new MemoryStore({ demo: false, personId: stableId, budget: new Budget() });
   if (args.demo && !args.files.length) {
     const seed = seedDemo();
     store.people = seed.people;
     store.sources = seed.sources;
     store.imports = seed.imports;
+    if (args.granola && !(await loadGranola(store, args, env, say))) return null;
     return store;
   }
-  if (!args.files.length) {
+  if (!args.files.length && !args.granola) {
     say("Give one or more files, or --demo. Run with --help.");
     return null;
   }
@@ -159,6 +197,7 @@ async function load(args: Args, say: (s: string) => void): Promise<MemoryStore |
     say(`${path.basename(file)}: ${parsed.format}, ${r.rows} rows, ${r.added} new, ${r.merged + r.unchanged} already known, ${r.folded} repeated inside the file${r.rejected.length ? `, ${r.rejected.length} skipped` : ""}.`);
     for (const n of parsed.notes) say(`  ${n}`);
   }
+  if (args.granola && !(await loadGranola(store, args, env, say))) return null;
   return store;
 }
 
@@ -175,7 +214,7 @@ export async function main(argv: string[], env: Record<string, string | undefine
     say(HELP);
     return args.help ? 0 : 1;
   }
-  if (!args.command) args.command = args.demo || args.files.length ? "import" : undefined;
+  if (!args.command) args.command = args.demo || args.files.length || args.granola ? "import" : undefined;
   if (!args.command) {
     say("Say what to do: import, search or enrich. Run with --help.");
     return 1;
@@ -185,11 +224,12 @@ export async function main(argv: string[], env: Record<string, string | undefine
       say("Demo mode refuses to run while LOOOT_TOKEN is set. Unset it, or drop --demo.");
       return 2;
     }
-    const store = await load(args, say);
-    if (!store) return 1;
+    const store = await load(args, env, say);
+    if (!store) return args.granola ? 2 : 1;
     say(`${store.people.length} people.`);
 
     if (args.command === "import") {
+      if (args.granola && args.dryRun) return 0;
       write(args, "network-people", store.people, peopleToMarkdown("Your network", store.people, { max: args.limit }), { source: "import" }, say);
       return 0;
     }
@@ -273,7 +313,7 @@ export async function main(argv: string[], env: Record<string, string | undefine
     write(args, "network-enrich", done, peopleToMarkdown("Enriched people", done, { max: args.limit }), { quotedMicros: summary.quotedMicros, spentMicros: summary.spentMicros, counts: c, demo: args.demo }, say);
     return summary.aborted || summary.budgetMessage ? 2 : 0;
   } catch (e) {
-    say((e as Error).message);
+    say(e instanceof GranolaApiError ? `Granola answered ${e.status}${e.status === 401 || e.status === 403 ? ", so the key was refused" : ""}.` : (e as Error).message);
     return 1;
   }
 }

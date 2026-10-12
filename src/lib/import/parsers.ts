@@ -5,7 +5,7 @@ import { parseCsv, toRecords } from "./csv";
 export type ImportFormat = "linkedin" | "google" | "x" | "generic";
 
 export interface ParseResult {
-  format: ImportFormat;
+  format: ImportFormat | "granola";
   source: SourceKind;
   /** Header cells of the table that was read (empty for the X archive). */
   header: string[];

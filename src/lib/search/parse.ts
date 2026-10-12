@@ -74,6 +74,7 @@ const SOURCE_WORDS: [RegExp, SourceKind][] = [
   [/\blinkedin\b/, "linkedin"],
   [/\bgoogle(?: contacts)?\b|\bgmail\b/, "google"],
   [/\b(?:x|twitter)(?: following)?\b/, "x"],
+  [/\bgranola\b/, "granola"],
   [/\bcsv\b/, "csv"],
 ];
 
