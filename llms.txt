@@ -1,0 +1,31 @@
+# looot-network
+
+> Open-source search over your own network, in plain language. Input: files you exported yourself (LinkedIn Connections.csv, Google Contacts CSV, X following.js, any CSV). Output: people matched by a rule-based query parser, as a web app on your Supabase or as a CLI that writes JSON, CSV and markdown. Optional paid enrichment through looot, quote first.
+
+## Run it
+
+- Needs Node 20.9+ (tests 22.12+). Install: `npm install --ignore-scripts`.
+- No account, no token: `npm run demo` (web UI on 200 invented people, port 3277) or `npm run network -- search "founders in Paris" --demo`.
+- Your own files: `npm run network -- search "who works at Stripe" Connections.csv contacts.csv`. Writes out/network-search.json, .csv, .md.
+- Enrichment cost with no charge: `npm run network -- enrich Connections.csv --kinds profile,company,email --dry-run`.
+- Real enrichment needs `LOOOT_TOKEN` in the shell and a funded looot balance (top up from $5). Cap per run: `--max-spend` (default 1 dollar). Period budget: LOOOT_NETWORK_DAILY_USD (default 5) and LOOOT_NETWORK_MONTHLY_USD (default 25).
+- Exit codes: 0 done, 1 error, 2 refused (no token, over the cap or the budget, token rejected).
+- The web app outside the demo needs Supabase (NEXT_PUBLIC_SUPABASE_URL, NEXT_PUBLIC_SUPABASE_ANON_KEY), LOOOT_NETWORK_ALLOWED_EMAILS, and for paid runs LOOOT_NETWORK_ENRICH=1 plus LOOOT_TOKEN. Migrations are in supabase/migrations. Full setup and env table are in README.md.
+
+## Files
+
+- src/lib/import/parsers.ts: LinkedIn, Google, X and generic CSV parsers and the column mapping.
+- src/lib/dedupe.ts: match by email, LinkedIn URL, or name plus company.
+- src/lib/search/parse.ts: the plain-language query parser. src/lib/search/memory.ts and supabase/migrations/20261012000100_search.sql run the same rules.
+- src/lib/enrich/providers.ts: the three pinned looot endpoints, their inputs and parsers.
+- src/lib/enrich/engine.ts and src/lib/budget.ts: quote, per-run cap, period budget, idempotency keys, pending runs.
+- skills/looot-network/SKILL.md: Claude Code skill.
+
+## Rules for agents
+
+- Never scrape LinkedIn and never ask for a password. Users export their own files.
+- Always run `--dry-run` first and show the quote to the user before a real run.
+- Never raise `--max-spend` without the user's word.
+- A "still running" call is not a failure and not free. Run the same command again later to collect it without a second charge.
+- No paid run has been checked against real provider responses yet. Say so when reporting enrichment results.
+- Do not fill in a place, email or title that no file or looot answer gave.

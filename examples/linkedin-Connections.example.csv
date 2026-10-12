@@ -1,0 +1,9 @@
+Notes:
+"When exporting your connection data, you may notice that some of the email addresses are missing. You will only see email addresses for connections who have chosen to allow their contacts to download their email addresses using the setting ""Who can download your email"". You can check or change your setting at https://www.linkedin.com/psettings/privacy/email"
+
+First Name,Last Name,URL,Email Address,Company,Position,Connected On
+Odile,Fenwick-Marsh,https://www.linkedin.com/in/odile-fenwick-marsh-example,,Brightwell Payments,Co-founder and CEO,11 Mar 2023
+Teodor,Alvarenga,https://fr.linkedin.com/in/teodor-alvarenga-example/,teodor.alvarenga@example.com,Harborline Labs,Head of Engineering,02 Nov 2022
+Wren,Castellanos,https://www.linkedin.com/in/wren-castellanos-example?trk=public,,Kestrel Ledger SAS,Founder,19 Jan 2024
+Ibrahim,Okonjo-Reyes,,,Lowmoor Capital,Partner,05 Jun 2021
+,,,,,,

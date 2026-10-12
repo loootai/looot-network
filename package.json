@@ -1,0 +1,50 @@
+{
+  "name": "looot-network",
+  "version": "0.1.0",
+  "description": "Search your own network in plain language. Import LinkedIn, Google Contacts or any CSV, index it in your Supabase, optionally enrich through looot. Next.js, Supabase and looot.",
+  "license": "MIT",
+  "private": true,
+  "scripts": {
+    "dev": "next dev",
+    "demo": "node scripts/demoGuard.mjs && NEXT_PUBLIC_DEMO=1 next dev -p 3277",
+    "build": "next build",
+    "start": "next start",
+    "test": "vitest run",
+    "typecheck": "tsc --noEmit --incremental false",
+    "lint": "eslint .",
+    "leak-scan": "LEAK_SCAN_ALLOWED_EMAILS='[.]example$|@([a-z0-9-]+[.])*(example[.](com|org)|gmail[.]com)$' bash scripts/leak-scan.sh .",
+    "test:sql": "bash scripts/test-sql.sh",
+    "test:gate": "node scripts/gateProof.mjs",
+    "network": "tsx src/cli/cli.ts"
+  },
+  "dependencies": {
+    "@supabase/ssr": "0.12.7",
+    "@supabase/supabase-js": "2.117.2",
+    "class-variance-authority": "0.7.1",
+    "clsx": "2.1.1",
+    "geist": "1.7.2",
+    "lucide-react": "1.49.0",
+    "next": "16.3.8",
+    "next-themes": "0.4.6",
+    "radix-ui": "1.6.7",
+    "react": "19.3.0",
+    "react-dom": "19.3.0",
+    "server-only": "0.0.1",
+    "sonner": "2.0.8",
+    "tailwind-merge": "3.7.0",
+    "zod": "4.6.5"
+  },
+  "devDependencies": {
+    "@tailwindcss/postcss": "4.3.3",
+    "@types/node": "24.19.0",
+    "@types/react": "19.3.0",
+    "@types/react-dom": "19.3.0",
+    "eslint": "9.39.5",
+    "eslint-config-next": "16.3.8",
+    "postcss": "8.5.28",
+    "tailwindcss": "4.3.3",
+    "tsx": "4.23.15",
+    "typescript": "5.9.3",
+    "vitest": "5.0.3"
+  }
+}
