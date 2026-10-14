@@ -1,8 +1,32 @@
-![looot-network: a plain-language search over an exported network, light](docs/screenshots/search-results.png)
+![looot-network: searching "founders at clay or n8n" over invented contacts, and the price quote for enriching 8 real companies, $0.0152](docs/media/banner.png)
+
+*Logos and names belong to their owners. Public data from a live run on 2026-10-14. No affiliation.*
 
 # looot network
 
 [![License](https://img.shields.io/github/license/loootai/looot-network)](LICENSE) [![Release](https://img.shields.io/github/v/release/loootai/looot-network)](https://github.com/loootai/looot-network/releases) [![Docs](https://img.shields.io/badge/docs-docs.looot.ai-12A06A)](https://docs.looot.ai)
+
+<table>
+<tr>
+<td width="50%"><img src="docs/media/card-search.png" alt="Ask for people in plain language: the sentence founders at clay or n8n read as a role filter and a company filter, 18 invented people"></td>
+<td width="50%"><img src="docs/media/card-profile.png" alt="The company behind each person: a profile drawer for an invented person with the industry looot returned for Attio"></td>
+</tr>
+<tr>
+<td><img src="docs/media/card-quote.png" alt="See the price before any call: 8 company domains at $0.0019, $0.0152 in total"></td>
+<td><img src="docs/media/card-live.png" alt="What the live run returned: industry for eight companies, two of them the wrong company"></td>
+</tr>
+<tr>
+<td><img src="docs/media/card-companies.png" alt="Everyone you know, grouped by company: Clay, Apify, Attio, HubSpot, n8n, Linear, Apollo.io and Firecrawl with 25 invented people each"></td>
+<td><img src="docs/media/card-imports.png" alt="Bring a LinkedIn, Google or CSV export: the imports page with its history"></td>
+</tr>
+</table>
+
+Every person in these images is invented ("Demo Person 001" and so on) and every card says so, with a "Demo data" or "Demo people" pill. The company part is real. On 2026-10-14 I ran one paid looot call per company domain for Clay, Apify, Attio, HubSpot, n8n, Linear, Apollo.io and Firecrawl, and the demo screens show what came back. The "What the live run returned" card is that run. See [Live run](#live-run-company-enrichment) below.
+
+![A 28-second walkthrough: imports, people, a typed search, a profile drawer, companies, the enrichment quote, and the live run table](docs/media/demo.gif)
+
+The same walkthrough as MP4: [docs/media/demo.mp4](docs/media/demo.mp4).
+
 
 Search your own network in plain language. You export your connections from LinkedIn, Google Contacts or X (or bring any CSV), or pull in the people from your Granola meetings, import them, and ask for "founders in Paris at fintech" or "who works at Stripe". The people live in your own Supabase project. Optional paid enrichment goes through [looot](https://looot.ai) and shows its price before it runs.
 
@@ -160,7 +184,30 @@ Money rules:
 - A call still running when waiting stops is "pending". Its money stays reserved, it is never written as failed at $0, and running the same lookup later collects it with no second charge.
 - A refusal from looot (bad token, no balance) gives the reservation back and stops the run. A network error with no answer keeps the reservation, because the request may have reached looot.
 
-What is not verified: no paid looot run was made while building this, so the parsers for the three response shapes were written from the catalog descriptions and are marked "not yet checked against a live call" on the Enrich page. If a field comes back in another shape it is left empty, never guessed.
+What is not verified: the profile and work-email parsers (no paid call was made for them). The company parser was checked against a live call on 2026-10-14 and reads the industry only, see [Live run](#live-run-company-enrichment). If a field comes back in another shape it is left empty, never guessed.
+
+## Live run: company enrichment
+
+What ran on 2026-10-14 (UTC): `npm run network -- enrich demo-contacts.csv --kinds company --max-spend 0.05`, on a CSV of 11 invented contacts whose employer column held one of eight real company domains (clay.com, apify.com, attio.com, hubspot.com, n8n.io, linear.app, apollo.io, firecrawl.dev). The 11 people shared 8 domains, so the app made 8 calls, one per domain, as designed.
+
+| | |
+|---|---|
+| Quote | $0.0152 (8 x $0.0019), read from the public looot catalog |
+| Charged | $0.0152, 8 calls, 0 failed, 0 pending. Run ids are in `looot runs list` |
+| Live | the company lookups (`thecompaniesapi-companies-by-email`, input `info@<domain>`) |
+| Demo data | every person. Names, titles and places are invented. Nothing about a person was looked up |
+
+What was good. All 8 calls answered in about 10 seconds, the charge matched the quote, and 6 of the 8 came back as the right company with a plausible industry (Apify, Attio, n8n, Linear, Apollo.io, Firecrawl).
+
+What was bad.
+
+- clay.com came back as a different company called Clay, listed as "maritime", with 1-10 employees.
+- hubspot.com came back as a solar company (industry "renewable-energy-power-generation", 1-10 employees), not HubSpot.
+- The lookup is by an email address (`info@<domain>`), and the provider matches it to a company in its own index. When two companies share a name, check the result. The app does not compare the returned name with the one you imported.
+- The app kept only the industry. The response also had a headcount range as a string ("200-500" for Attio) and a headquarters country, but the parser reads a number and a flat country field, so `employees` and `country` stayed empty. The parser is in [src/lib/enrich/providers.ts](src/lib/enrich/providers.ts). I did not change it.
+- The two other lookups (LinkedIn profile, work email) were not run. They need real LinkedIn URLs of real people, and this run was kept to companies.
+
+The company response shape is now checked against a live call for the industry field only. The Enrich page still says "not yet checked" for all three lookups.
 
 ## Securing a deployment
 
@@ -170,7 +217,7 @@ Outside demo mode every page and every API route needs a signed-in user whose em
 - **Admin, everything else:** the pages (People, Search, Companies, Imports, Enrich, Settings) and the API routes (people, import, export, saved searches, companies, quote, enrich, budget, enrichments). Each page and route checks the session itself, in addition to the proxy.
 - **No allow-list set:** the app shows a setup page and every data, settings and spending route answers 503.
 - **Row-level security:** every table is scoped to the signed-in owner and forced, and anonymous callers get nothing. `npm run test:sql` checks this on a throwaway Postgres.
-- **State-changing requests** must come from the same origin and carry JSON. A cross-site form or fetch is refused with 403, even with a valid session.
+- **State-changing requests** must come from the same origin and carry JSON. A cross-site form or fetch is refused with 403, even with a valid session. Chrome sends `Origin: null` under the no-referrer policy, so a null origin passes only when `Sec-Fetch-Site` says same-origin.
 - **Money:** the per-run cap, the people limit and the budgets come from server config or the owner's saved settings. A request body cannot set them, and the spending routes are rate limited per user.
 - **Exports** and every route that returns personal data send `Cache-Control: no-store`. Security headers (CSP, frame denial, no sniffing, no referrer) are set on every path in [next.config.mjs](next.config.mjs).
 - **Demo mode** has no sign-in and refuses to start next to a `LOOOT_TOKEN` or a real Supabase URL.
@@ -197,7 +244,7 @@ npm run leak-scan
 
 ## Status
 
-Version 0.1.1. What was run: unit tests with mocked HTTP for the parsers, dedupe, query parser, enrichment engine, budget and CLI; route-level gate tests; the SQL checks on PostgreSQL 17; a clean build; the demo on every route. What was not run: any call to Granola (all mocked, no Business-plan key), any paid looot call, the Supabase client code against a live Supabase project (the SQL was checked on plain Postgres and the client with a recording stand-in), and the sign-in email flow. Not built: scheduled refresh, background jobs, vector search, a shared team network.
+Version 0.1.1. What was run: unit tests with mocked HTTP for the parsers, dedupe, query parser, enrichment engine, budget and CLI; route-level gate tests; the SQL checks on PostgreSQL 17; a clean build; the demo on every route. What was not run: any call to Granola (all mocked, no Business-plan key), any paid looot call for profiles or work emails, the Supabase client code against a live Supabase project (the SQL was checked on plain Postgres and the client with a recording stand-in), and the sign-in email flow. Not built: scheduled refresh, background jobs, vector search, a shared team network.
 
 ## Licence
 

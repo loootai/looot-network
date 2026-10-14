@@ -16,7 +16,11 @@ export function isPublicPath(path: string): boolean {
 export function sameOriginJson(method: string, headers: { get(name: string): string | null }, host: string): { ok: true } | { ok: false; reason: string } {
   if (["GET", "HEAD", "OPTIONS"].includes(method)) return { ok: true };
   const origin = headers.get("origin");
-  if (origin) {
+  // The app sends Referrer-Policy: no-referrer, so Chrome posts same-site forms with "Origin: null".
+  // Fall back to Sec-Fetch-Site, which the browser sets and a page cannot forge.
+  if (origin === "null") {
+    if (headers.get("sec-fetch-site") !== "same-origin") return { ok: false, reason: "Cross-site request refused." };
+  } else if (origin) {
     let h: string | null = null;
     try {
       h = new URL(origin).host;

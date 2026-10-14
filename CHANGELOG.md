@@ -1,5 +1,10 @@
 # Changelog
 
+## Unreleased
+
+- Fix sign-in and other form posts from Chrome refused with "Cross-site request refused". The app sends `Referrer-Policy: no-referrer`, so Chrome posts with `Origin: null`. The same-origin check now accepts `Origin: null` when `Sec-Fetch-Site` is `same-origin`, and still refuses it otherwise.
+- README: banner, screenshots, demo video and a live company-enrichment run.
+
 ## 0.1.1
 
 - Granola meeting import. People who attended your meetings become contacts with source "granola", the last-met date and meeting title kept as provenance, merged through the same dedupe path as the CSV sources. Server-side key (`GRANOLA_API_KEY`), `POST /api/import/granola` behind the allow-list, `import --granola` in the CLI with `--dry-run`, `--since`, `--exclude-domain` and `--self`. Migration `20261012000300_granola_source.sql` adds the source to the imports check.

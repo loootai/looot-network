@@ -87,5 +87,9 @@ describe("CSRF", () => {
     expect(sameOriginJson("DELETE", new Headers({ origin: "http://localhost:3000" }), "localhost:3000").ok).toBe(true);
     expect(sameOriginJson("POST", new Headers({ "sec-fetch-site": "cross-site", "content-type": "application/json", "content-length": "2" }), "localhost:3000").ok).toBe(false);
     expect(sameOriginJson("GET", new Headers({ origin: "https://evil.example" }), "localhost:3000").ok).toBe(true);
+    const json = { "content-type": "application/json", "content-length": "2" };
+    expect(sameOriginJson("POST", new Headers({ origin: "null", "sec-fetch-site": "same-origin", ...json }), "localhost:3000").ok).toBe(true);
+    expect(sameOriginJson("POST", new Headers({ origin: "null", "sec-fetch-site": "cross-site", ...json }), "localhost:3000").ok).toBe(false);
+    expect(sameOriginJson("POST", new Headers({ origin: "null", ...json }), "localhost:3000").ok).toBe(false);
   });
 });
